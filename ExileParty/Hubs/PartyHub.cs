@@ -8,6 +8,8 @@ using System.Collections.Generic;
 using ExileParty.Helper;
 using System.Linq;
 using ExileParty.Interfaces;
+using Microsoft.AspNetCore.JsonPatch;
+using Microsoft.AspNetCore.JsonPatch.Operations;
 using Newtonsoft.Json;
 
 namespace ExileParty.Hubs
@@ -28,7 +30,7 @@ namespace ExileParty.Hubs
                 
         public async Task JoinParty(string partyName, string playerObj)
         {
-            var player = CompressionHelper.Decompress<PlayerModel>(playerObj);
+            var player = CompressionHelper.DecompressToObject<PlayerModel>(playerObj);
 
             // set initial id of player
             player.ConnectionID = Context.ConnectionId;
@@ -71,7 +73,7 @@ namespace ExileParty.Hubs
 
         public async Task LeaveParty(string partyName, string playerObj)
         {
-            var player = CompressionHelper.Decompress<PlayerModel>(playerObj);
+            var player = CompressionHelper.DecompressToObject<PlayerModel>(playerObj);
 
             var foundParty = await _cache.GetAsync<PartyModel>($"party:{partyName}");
             if (foundParty != null)
@@ -96,9 +98,18 @@ namespace ExileParty.Hubs
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, partyName);
         }
 
+        public async Task PatchPlayer(string partyname, string playerPatchObj)
+        {
+            var json = CompressionHelper.DecompressToJson(playerPatchObj);
+            var ops = new Operation();
+            ops.value = json;
+            var patch = new JsonPatchDocument(){};
+            patch.Operations.Add(ops);
+        }
+
         public async Task UpdatePlayer(string partyName, string playerObj)
         {
-            var player = CompressionHelper.Decompress<PlayerModel>(playerObj);
+            var player = CompressionHelper.DecompressToObject<PlayerModel>(playerObj);
 
             var party = await _cache.GetAsync<PartyModel>($"party:{partyName}");
             if (party != null)
@@ -106,9 +117,20 @@ namespace ExileParty.Hubs
                 var index = party.Players.IndexOf(party.Players.FirstOrDefault(x => x.ConnectionID == player.ConnectionID));
                 if(index != -1)
                 {
+                    var oldPlayer = party.Players[index];
+                    var patch = JsonPatchHelper.CreatePatch(oldPlayer, player);
+
+                    var patchObj = new
+                    {
+                        Account = player.Account,
+                        Patch = patch
+                    };
+
                     party.Players[index] = player;
+
                     await _cache.SetAsync<PartyModel>($"party:{partyName}", party);
-                    await Clients.Group(partyName).SendAsync("PlayerUpdated", CompressionHelper.Compress(player));
+                    //await Clients.Group(partyName).SendAsync("PlayerUpdated", CompressionHelper.Compress(player));
+                    await Clients.Group(partyName).SendAsync("PlayerPatched", CompressionHelper.Compress(patchObj));
                 }
             }
             else

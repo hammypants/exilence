@@ -32,7 +32,15 @@ namespace ExileParty.Helper
             }
         }
 
-        public static T Decompress<T>(string input)
+        public static T DecompressToObject<T>(string input)
+        {
+            var jsonString = DecompressToJson(input);
+
+            return JsonConvert.DeserializeObject<T>(jsonString);
+
+        }
+
+        public static string DecompressToJson(string input)
         {
             string jsonString = null;
 
@@ -47,8 +55,7 @@ namespace ExileParty.Helper
 
             }
 
-            return JsonConvert.DeserializeObject<T>(jsonString);
-
+            return jsonString;
         }
     }
 }

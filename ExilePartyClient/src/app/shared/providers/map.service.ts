@@ -63,7 +63,7 @@ export class MapService {
       };
       let areasToSend;
       this.areaHistory = this.areaHistory
-          .filter((area: ExtendedAreaInfo) => area.timestamp > oneWeekAgo);
+        .filter((area: ExtendedAreaInfo) => area.timestamp > oneWeekAgo);
 
       // If we enter a map
       // And got atleast three zones in out history (map --> hideout --> map)
@@ -122,7 +122,7 @@ export class MapService {
       const historyToSend = HistoryHelper.filterNetworth(this.localPlayer.netWorthSnapshots, oneHourAgo);
 
       const objToSend = Object.assign({}, this.localPlayer);
-      if(areasToSend !== undefined){
+      if (areasToSend !== undefined) {
         objToSend.pastAreas = areasToSend;
       }
       objToSend.netWorthSnapshots = historyToSend;

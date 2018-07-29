@@ -12,6 +12,7 @@ import { Player, RecentPlayer } from '../interfaces/player.interface';
 import { AccountService } from './account.service';
 import { ExternalService } from './external.service';
 import { LogMonitorService } from './log-monitor.service';
+import { applyOperation, applyPatch } from 'fast-json-patch';
 import { SettingsService } from './settings.service';
 
 import { LogMessage } from '../interfaces/log-message.interface';
@@ -142,6 +143,29 @@ export class PartyService {
           this.selectedPlayer.next(playerObj);
         }
         this.logService.log('Player updated:', playerObj);
+      });
+    });
+
+
+    this._hubConnection.on('PlayerPatched', (data: string) => {
+      this.decompress(data, (patch: any) => {
+        const index = this.party.players.indexOf(this.party.players.find(x => x.account === patch.account));
+
+        const patchData = patch.patch;
+
+        this.party.players[index] = applyPatch(this.party.players[index], patchData).newDocument;
+        this.updatePlayerLists(this.party);
+        this.partyUpdated.next(this.party);
+
+        // if player is self, set history based on local data
+        if (this.party.players[index].account === this.currentPlayer.account) {
+          this.party.players[index].netWorthSnapshots = Object.assign([], this.currentPlayer.netWorthSnapshots);
+          this.party.players[index].pastAreas = Object.assign([], this.currentPlayer.pastAreas);
+        }
+        if (this.selectedPlayerObj.account === this.party.players[index].account) {
+          this.selectedPlayer.next(this.party.players[index]);
+        }
+        this.logService.log('Player updated:', this.party.players[index]);
       });
     });
 
